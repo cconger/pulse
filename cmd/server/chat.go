@@ -84,24 +84,21 @@ func (c *ChatHandler) HandleMessage(m twitchirc.PrivateMessage) {
 		return
 	}
 
-	targetTopic := match.Topic
-	targetUserID := ""
-
-	if match.User != "" {
-		u, err := c.UserCache.GetByDisplayName(ctx, match.User)
-		if err != nil {
-			slog.Error("loading user", "DisplayName", match.User, "err", err)
-			return
-		}
-		targetUserID = u.ID
-	}
-
 	tt := "anon"
-	if match.User != "" {
-		tt = "user"
-	}
+	targetUserID := ""
+	targetTopic := match.Topic
 	if match.Topic != "" {
 		tt = "topic"
+	} else {
+		targetUserID = m.RoomID
+		if match.User != "" {
+			u, err := c.UserCache.GetByDisplayName(ctx, match.User)
+			if err != nil {
+				slog.Error("loading user", "DisplayName", match.User, "err", err)
+				return
+			}
+			targetUserID = u.ID
+		}
 	}
 
 	votesProcessed.WithLabelValues(m.Channel, tt).Inc()

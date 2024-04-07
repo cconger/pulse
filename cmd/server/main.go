@@ -113,6 +113,7 @@ func main() {
 	}
 
 	tSink := &ClickhouseSink{CHConn: chconn}
+	psMiddleware := NewPubSubMiddleware(tSink)
 
 	oauth := os.Getenv("TWITCH_OAUTH")
 	c := twitch.NewClient("shindaggers", "oauth:"+oauth)
@@ -128,7 +129,7 @@ func main() {
 			10000,
 			userResolver.lookupUserByDisplayName,
 		),
-		TSink: tSink,
+		TSink: psMiddleware,
 	}
 	c.OnConnect(func() {
 		slog.Info("connected to twitch irc")
@@ -155,6 +156,43 @@ func main() {
 		}
 
 		json.NewEncoder(w).Encode(balance)
+	})
+
+	mux.HandleFunc("GET /stream/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
+			http.NotFound(w, r)
+			return
+		}
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		// Register with pubsub to get live events
+		c, unsub := psMiddleware.Subscribe(r.Context(), id)
+		defer unsub()
+
+		// Send the initial headers saying we're gonna stream the response.
+		w.Header().Set("Transfer-Encoding", "chunked")
+		w.WriteHeader(http.StatusOK)
+		flusher.Flush()
+
+		enc := json.NewEncoder(w)
+
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case trans := <-c:
+				err := enc.Encode(trans)
+				if err != nil {
+					slog.Error("encoding transaction", "err", err)
+				}
+				flusher.Flush()
+			}
+		}
 	})
 
 	port := os.Getenv("PORT")
