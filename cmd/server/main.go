@@ -8,12 +8,16 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	twclient "github.com/cconger/pulse/pkg/twitch"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/gempir/go-twitch-irc/v4"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func clickhouseClient(ctx context.Context, addr string, auth clickhouse.Auth) (driver.Conn, error) {
@@ -79,6 +83,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+	registerChatMetrics(reg)
+
 	clientID := os.Getenv("TWITCH_CLIENT_ID")
 	clientSecret := os.Getenv("TWITCH_SECRET")
 
@@ -124,10 +135,14 @@ func main() {
 	})
 	c.OnPrivateMessage(handler.HandleMessage)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+
+	// Use id=39214310
+	mux.HandleFunc("/balance/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
 		slog.Info("got request", "request", r)
 
-		res := chconn.QueryRow(r.Context(), "SELECT SUM(value) FROM pulse.checkin WHERE channel = ? and target_user = ?", "39214310", "39214310")
+		res := chconn.QueryRow(r.Context(), "SELECT SUM(value) FROM pulse.checkin WHERE channel = ? and target_user = ?", id, id)
 
 		if res.Err() != nil {
 			json.NewEncoder(w).Encode(res.Err())
@@ -144,8 +159,37 @@ func main() {
 
 	port := os.Getenv("PORT")
 	port = ":" + port
+	s := &http.Server{
+		Addr:           port,
+		Handler:        mux,
+		ErrorLog:       slog.NewLogLogger(slog.Default().Handler(), slog.LevelInfo),
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   1 * time.Minute,
+		MaxHeaderBytes: 1 << 20,
+	}
+
+	promMux := http.NewServeMux()
+
+	promMux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+
+	promPort := ":" + os.Getenv("PROM_PORT")
+	proms := &http.Server{
+		Addr:           promPort,
+		Handler:        promMux,
+		ErrorLog:       slog.NewLogLogger(slog.Default().Handler(), slog.LevelInfo),
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+
 	go func() {
-		if err := http.ListenAndServe(port, nil); err != nil {
+		if err := s.ListenAndServe(); err != nil {
+			panic(err)
+		}
+	}()
+
+	go func() {
+		if err := proms.ListenAndServe(); err != nil {
 			panic(err)
 		}
 	}()

@@ -63,7 +63,7 @@ func matchMessage(m string) *match {
 }
 
 func (c *ChatHandler) HandleMessage(m twitchirc.PrivateMessage) {
-	slog.Debug("Got message", "message", m.Message)
+	chatMessages.WithLabelValues(m.Channel).Inc()
 	ctx := c.RootContext
 	// All Messages should hydrate the usercache
 	c.UserCache.Insert(&User{
@@ -95,6 +95,16 @@ func (c *ChatHandler) HandleMessage(m twitchirc.PrivateMessage) {
 		}
 		targetUserID = u.ID
 	}
+
+	tt := "anon"
+	if match.User != "" {
+		tt = "user"
+	}
+	if match.Topic != "" {
+		tt = "topic"
+	}
+
+	votesProcessed.WithLabelValues(m.Channel, tt).Inc()
 
 	t := Transaction{
 		Channel:     m.RoomID,
