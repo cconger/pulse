@@ -1,0 +1,19 @@
+# fly.toml app configuration file generated for clickhouse-pulse on 2024-03-24T20:45:52-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'clickhouse-pulse'
+primary_region = 'sjc'
+
+[build]
+
+[[mounts]]
+  source = "clickhouse_pulse_db"
+  destination = "/var/lib/clickhouse"
+  initial_size = "3gb"
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 2
