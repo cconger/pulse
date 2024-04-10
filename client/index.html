@@ -8,5 +8,107 @@
     <script type="application/javascript" src="rough.js"></script>
   </head>
   <body>
+    <script type="application/javascript">
+      const width = 500;
+      const height = 300;
+      const ratio = window.devicePixelRatio;
+      const canvas = document.createElement("canvas")
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      canvas.style.border = "1px solid black";
+      const ctx = canvas.getContext("2d"); 
+      ctx.scale(ratio, ratio);
+      document.body.appendChild(canvas);
+
+      const plusTwo = document.createElement("button");
+      plusTwo.textContent = "+2";
+      plusTwo.onclick = () => {
+        points[points.length - 1] += 2;
+      };
+      document.body.appendChild(plusTwo);
+      const minusTwo = document.createElement("button");
+      minusTwo.textContent = "-2";
+      minusTwo.onclick = () => {
+        points[points.length - 1] -= 2;
+      };
+      document.body.appendChild(minusTwo);
+
+
+      const rc = rough.canvas(canvas);
+
+      var points = [
+        100,
+        120,
+        110,
+        150,
+        90,
+        100,
+        120,
+        110,
+        150,
+        90,
+      ];
+
+      function linePlot(data) {
+        let step = width / data.length;
+        let x = 0;
+
+        const points = data.map((y) => {
+          let p = [x, height-y];
+          x += step;
+          return p;
+        })
+
+        rc.linearPath(points);
+        let lastPoint = points[points.length - 1];
+        rc.circle(lastPoint[0], lastPoint[1], 10, { fill: "black", stroke: "black" })
+      }
+
+
+
+      function candleGraph(data) {
+
+        let candles = [];
+        let prev = data[0];
+        for (let i = 1; i < data.length; i++) {
+          v = data[i];
+          candles.push({start: prev, end: v})
+          prev = v;
+        }
+        let current = {
+          start: data[points.length - 1],
+          end: data[points.length - 1],
+        };
+
+        let step = (width * 0.75) / candles.length;
+        for (let i = 0; i < candles.length; i++) {
+          let candle = candles[i];
+          let x = i * step;
+          let y = height - candle.start;
+          let h = candle.start - candle.end;
+          let w = step * 0.75
+          if (h < 0) {
+            y = y + h;
+            h = -h;
+          }
+          if (candle.start < candle.end) {
+            ctx.draw
+            rc.rectangle(x, y, w, h, { fill: "green", stroke: "black", seed: i+1 });
+          } else {
+            rc.rectangle(x, y, w, h, { fill: "red", stroke: "black", seed: i+1 });
+          }
+        }
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, width, height);
+        candleGraph(points);
+        window.requestAnimationFrame(render)
+      };
+      render();
+
+    </script>
   </body>
 </html>

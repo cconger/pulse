@@ -8,12 +8,15 @@ primary_region = 'sjc'
 
 [build]
 
+[env]
+  CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+
 [[mounts]]
   source = "clickhouse_pulse_db"
   destination = "/var/lib/clickhouse"
   initial_size = "3gb"
 
 [[vm]]
-  memory = '1gb'
+  memory = '2gb'
   cpu_kind = 'shared'
   cpus = 2

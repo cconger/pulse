@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -122,6 +123,28 @@ func main() {
 	userResolver := &UserResolver{
 		TwitchClient: client,
 	}
+
+	go func() {
+		slog.Warn("running with random data generator!")
+		time.Sleep(5 * time.Second)
+		for {
+			time.Sleep(1 * time.Second)
+
+			v := rand.Intn(5) - 2
+			if v == 0 {
+				continue
+			}
+
+			psMiddleware.Insert(ctx, Transaction{
+				Channel:     "0",
+				Source:      "fake",
+				TargetUser:  "0",
+				TargetTopic: "",
+				Value:       v,
+				Timestamp:   time.Now(),
+			})
+		}
+	}()
 
 	handler := ChatHandler{
 		RootContext: context.Background(),
