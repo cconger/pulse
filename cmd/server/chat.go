@@ -129,6 +129,7 @@ type UserCache struct {
 }
 
 func NewUserCache(limit int, backfillFn UserLoadingFunction) *UserCache {
+	// TODO: Instrument this so we can see how big the cache is
 	return &UserCache{
 		ByDisplayName: make(map[string]*list.Element),
 		Users:         list.New(),

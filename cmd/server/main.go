@@ -83,6 +83,7 @@ func (c *UserResolver) lookupUserByDisplayName(ctx context.Context, displayName 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	fakeData := false
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
@@ -118,33 +119,44 @@ func main() {
 
 	oauth := os.Getenv("TWITCH_OAUTH")
 	c := twitch.NewClient("shindaggers", "oauth:"+oauth)
-	c.Join("shindaggers", "shindigs", "northernlion")
+	c.Join(
+		"shindaggers",
+		"shindigs",
+		"jamsvirtual",
+		"northernlion",
+		"chiblee",
+		"HCJustin",
+		"michaelalfox",
+		"flackblag",
+	)
 
 	userResolver := &UserResolver{
 		TwitchClient: client,
 	}
 
-	go func() {
-		slog.Warn("running with random data generator!")
-		time.Sleep(5 * time.Second)
-		for {
-			time.Sleep(1 * time.Second)
+	if fakeData {
+		go func() {
+			slog.Warn("running with random data generator!")
+			time.Sleep(5 * time.Second)
+			for {
+				time.Sleep(1 * time.Second)
 
-			v := rand.Intn(5) - 2
-			if v == 0 {
-				continue
+				v := rand.Intn(5) - 2
+				if v == 0 {
+					continue
+				}
+
+				psMiddleware.Insert(ctx, Transaction{
+					Channel:     "0",
+					Source:      "fake",
+					TargetUser:  "0",
+					TargetTopic: "",
+					Value:       v,
+					Timestamp:   time.Now(),
+				})
 			}
-
-			psMiddleware.Insert(ctx, Transaction{
-				Channel:     "0",
-				Source:      "fake",
-				TargetUser:  "0",
-				TargetTopic: "",
-				Value:       v,
-				Timestamp:   time.Now(),
-			})
-		}
-	}()
+		}()
+	}
 
 	handler := ChatHandler{
 		RootContext: context.Background(),
