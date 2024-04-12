@@ -128,6 +128,9 @@ func main() {
 		"HCJustin",
 		"michaelalfox",
 		"flackblag",
+		"dumbdog",
+		"baertaffy",
+		"dangheesling",
 	)
 
 	userResolver := &UserResolver{
